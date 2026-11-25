@@ -1,0 +1,34 @@
+--- a/src/main/fc/fc_core.c
++++ b/src/main/fc/fc_core.c
+@@ -229,7 +229,7 @@
+         /* CHECK: Throttle */
+         if (!armingConfig()->fixed_wing_auto_arm) {
+             // Don't want this check if fixed_wing_auto_arm is in use - machine arms on throttle > LOW
+-            if (throttleStickIsLow()) {
++            if (armingConfig()->arm_ignore_throttle || throttleStickIsLow()) {
+                 DISABLE_ARMING_FLAG(ARMING_DISABLED_THROTTLE);
+             } else {
+                 ENABLE_ARMING_FLAG(ARMING_DISABLED_THROTTLE);
+--- a/src/main/fc/rc_controls.h
++++ b/src/main/fc/rc_controls.h
+@@ -115,6 +115,7 @@
+ 
+ typedef struct armingConfig_s {
+     bool fixed_wing_auto_arm;               // Auto-arm fixed wing aircraft on throttle up and never disarm
++    bool arm_ignore_throttle;               // Ignore low-throttle check when arming
+     bool disarm_always;                     // Disarm motors regardless of throttle value
+     uint16_t switchDisarmDelayMs;           // additional delay between ARM box going off and actual disarm
+     uint16_t prearmTimeoutMs;               // duration for which Prearm being activated is valid. after this, Prearm needs to be reset. 0 means Prearm does not timeout.
+--- a/src/main/fc/settings.yaml
++++ b/src/main/fc/settings.yaml
+@@ -1591,6 +1591,10 @@
+         description: "Auto-arm fixed wing aircraft on throttle above min_check, and disarming with stick commands are disabled, so power cycle is required to disarm. Requires enabled motorstop and no arm switch configured."
+         default_value: OFF
+         type: bool
++      - name: arm_ignore_throttle
++        description: "Allow arming regardless of throttle position. WARNING: disables the low-throttle arming safety check."
++        default_value: OFF
++        type: bool
+       - name: disarm_always
+         description: "When you switch to Disarm, do so regardless of throttle position. If this Setting is `OFF`. It will only disarm only when the throttle is low. This is similar to the previous `disarm_kill_switch` option. Default setting is the same as the old default behaviour."
+         default_value: ON

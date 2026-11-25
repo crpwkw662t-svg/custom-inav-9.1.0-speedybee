@@ -1,0 +1,65 @@
+name: Build INAV 9.1.0 - SpeedyBee F405 AIO (custom throttle ARM option)
+
+on:
+  push:
+    branches:
+      - 'custom-inav-9.1.0*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  INAV_TARGET: SPEEDYBEEF405AIO
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout INAV source
+        uses: actions/checkout@v4
+
+      - name: Verify source version and target
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'project(INAV VERSION 9.1.0)' CMakeLists.txt
+          test -f "src/main/target/${INAV_TARGET}/CMakeLists.txt"
+          echo "INAV 9.1.0 and ${INAV_TARGET} found"
+
+      - name: Apply custom ARM setting patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check arm_ignore_throttle.patch
+          git apply arm_ignore_throttle.patch
+          grep -q 'arm_ignore_throttle' src/main/fc/settings.yaml
+          grep -q 'arm_ignore_throttle' src/main/fc/rc_controls.h
+          grep -q 'arm_ignore_throttle' src/main/fc/fc_core.c
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3
+
+      - name: Configure INAV (CMake downloads the pinned ARM GNU toolchain)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build firmware
+        run: cmake --build build --target "${INAV_TARGET}" --parallel 2
+
+      - name: Verify HEX output
+        shell: bash
+        run: |
+          set -euo pipefail
+          find build -type f -name '*.hex' -print -quit | grep -q .
+          find build -type f -name '*.hex' -printf '%p %s bytes\n'
+
+      - name: Upload HEX firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: INAV-9.1.0-SPEEDYBEEF405AIO-arm-ignore-throttle
+          path: build/*.hex
+          if-no-files-found: error
+          retention-days: 30
